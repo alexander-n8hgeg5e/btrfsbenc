@@ -323,6 +323,16 @@ def do_backup():
     bashcode=bashcode1+pipe+bashcode2
     shell=['bash','-c',bashcode]
     sp.check_call(shell)
+    
+def do_inc_backup(parent):
+    setup_all()
+    bashcode1='nice -n19 ionice -c3 sudo btrfs send -p '+parent+' '+snap
+    bashcode2='nice -n19 ionice -c3 sudo btrfs receive '+backupdir
+    pipe='|'
+    q1='\''
+    bashcode=bashcode1+pipe+bashcode2
+    shell=['bash','-c',bashcode]
+    sp.check_call(shell)
 
 def setup_all():
     if not setup_snapshot_done: setup_snapshot()
@@ -333,6 +343,26 @@ def search_for_shared_snapshot_pairs():
     """
     search for shared snapshots, that are needed to do incremental backups.
     return list of pathnames. latest one first.
+    """
+    """
+    a=!echo  /snapshot*
+    b=a[0].split(' ')
+    c=!echo $backupdir/*
+    d=c[0].split(' ')
+    e=[]
+    ...: for i in d:
+    ...:     e.append(basename(i))
+    f=[]
+    ...: for i in b:
+    ...:     f.append(basename(i))
+    m=[]
+    ...: for i in b:
+    ...:     for j in e:
+    ...:         if basename(j)==basename(i):
+    ...:             #match
+    ...:             print('match')
+    ...:             m.append(i)
+    return m
     """
 
 
