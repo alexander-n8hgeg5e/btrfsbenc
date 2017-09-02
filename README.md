@@ -1,2 +1,2 @@
 # btrfsbenc
-python functions to automate tasks needed to do backups on encrypted portable disks. (linux/luks)
+python functions to automate backups to encrypted portable disks. (linux/luks)
