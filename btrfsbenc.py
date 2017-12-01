@@ -308,11 +308,11 @@ def unmap():
         else:
             setup_decryptvol_done=False
             raise Exception('backupdecryptvol_devname: '+Q+backupdecryptvol_devname+Q+' is already closed')
-        checkisnot(check_luks_open)(dev_name)
+        checkisnot(check_luks_open)(encrypted_dev_name)
         setup_decryptvol_done=False
     else:
         setup_decryptvol_done=False
-        raise Exception('get_crypto_LUKS_volume_devname(dev_name)==backupdecryptvol_devname is not equal. not expected')
+        raise Exception('get_crypto_LUKS_volume_devname(encrypted_dev_name)==backupdecryptvol_devname is not equal. not expected')
 
 def do_backup():
     setup_all()
