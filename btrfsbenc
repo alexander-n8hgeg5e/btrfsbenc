@@ -1,11 +1,13 @@
 #!/usr/bin/python3
 import subprocess as sp
+import argparse
 from os.path import basename
 from os import path
 from os import listdir
 import pexpect
+import logging
 #List of backupvolumes
-uuiddict={'a2ffcdb8-0372-41d1-b2a2-a62ea16aeaf1':'B5'} #uuid:name
+uuiddict={'a2ffcdb8-0372-41d1-b2a2-a62ea16aeaf1':'B5','481da90a-0c78-4891-b5a0-ed420b422034':'B4',"9e40b3e3-fbd0-4f6a-8b61-102052a81e8f":'B2'} #uuid:name
 uuidlist=list(uuiddict)
 MAX=9
 verbosity_level=2
@@ -17,6 +19,31 @@ setup_mountpoint_done=False
 setup_snapshot_done=False
 setup_decryptvol_done=False
 basedir='/mnt/backup/'
+CONFIG_LOGLEVEL=logging.INFO
+
+def parse_args():
+    """Parse command-line arguments."""
+
+    parser = argparse.ArgumentParser(description='backup tool')
+    parser.add_argument('-d', '--debug', action="store_true",default=False)
+    parser.add_argument('-t', '--testing', action="store_true",default=False)
+    return parser.parse_args()
+
+args=parse_args()
+handler=logging.StreamHandler()
+if args.debug:
+  LOGLEVEL=logging.DEBUG
+  handler.setFormatter(logging.Formatter('%(funcName)s: %(message)s'))
+else:
+  LOGLEVEL=CONFIG_LOGLEVEL
+  handler.setFormatter(logging.Formatter('%(message)s'))
+
+log=logging.getLogger('root')
+log.setLevel(LOGLEVEL)
+log.addHandler(handler)
+
+
+
 
 def get_device_name(line):
     name=''
@@ -49,7 +76,7 @@ def v(message,minlevel,**kwargs):
                 print(message)
         else:
             print(message)
-    
+
 def check_if_devname_is_crypto_LUKS(dev_name):
     foundline=False
     for line in blkidout:
@@ -100,7 +127,7 @@ def get_crypto_LUKS_volume_devname(dev_name):
                 return mycryptvol_devname
             else: raise Exception('volume devname can not determined if cryptvol is inactive and it  seems not active')
     raise Exception( 'devname( '+dev_name+' ) not found in output of :'+str(cmd)+' Probably not open.')
-    
+
 def open_crypto_LUKS(encrypt_dev_name,decrypt_vol_name):
     cmd=['sudo','cryptsetup','luksOpen',encrypt_dev_name,decrypt_vol_name]
     child = pexpect.spawn(cmd[0],cmd[1:])
@@ -180,10 +207,10 @@ def path_is_mountpoint(path):
             v('warning: not expected that case',1)
     except sp.CalledProcessError:
         return False
-    
+
 def try_sys_cmd(cmdlist):
     sp.check_call(cmdlist,stdout=sp.DEVNULL,stderr=sp.DEVNULL)
-    
+
 def setup_basedir():
     basedir='/mnt/backup/' ##need trailing slash
     check(path.isdir)(basedir)
@@ -195,9 +222,9 @@ def dir_is_empty(dir):
     else: return False
 
 def mount(dev,dir):
-    cmd=['sudo' ,'mount',dev,dir]
+    cmd=['sudo' ,'mount','-o','noatime,compress=zstd',dev,dir]
     try_sys_cmd(cmd)
-    
+
 def _unmount(dev):
     cmd=['sudo' ,'umount',dev]
     try_sys_cmd(cmd)
@@ -266,7 +293,7 @@ def is_mountpoint_ok(dev,dir):
                 if not is_dev_mounted_elsewhere(dev,dir):
                     return True
     return False
-    
+
 def setup_mountpoint():
     global setup_mountpoint_done
     setup_basedir()
@@ -279,7 +306,8 @@ def setup_mountpoint():
         v('',9,g=1,r=1)
     else:
         checkisnot(is_dev_mounted_elsewhere)(backupdecryptvol_devname,backupdir)#if is, better abort
-        check(dir_is_empty)#else better abort
+        check(path.isdir)(backupdir)#else better abort
+        check(dir_is_empty)(backupdir)#else better abort
         mount(backupdecryptvol_devname,backupdir)
         check(is_mountpoint_ok)(backupdecryptvol_devname,backupdir)
         setup_mountpoint_done=True
@@ -323,7 +351,7 @@ def do_backup():
     bashcode=bashcode1+pipe+bashcode2
     shell=['bash','-c',bashcode]
     sp.check_call(shell)
-    
+
 def do_inc_backup(parent):
     setup_all()
     bashcode1='nice -n19 ionice -c3 sudo btrfs send -p '+parent+' '+snap
@@ -344,33 +372,71 @@ def search_for_shared_snapshot_pairs():
     search for shared snapshots, that are needed to do incremental backups.
     return list of pathnames. latest one first.
     """
-    """
-    a=!echo  /snapshot*
-    b=a[0].split(' ')
-    c=!echo $backupdir/*
-    d=c[0].split(' ')
+    a=sp.check_output(['fish','-c','echo /snapshot*']).decode().strip().split(' ')
+    b=sp.check_output(['fish','-c','echo '+backupdir+'/*']).decode().strip().split(' ')
     e=[]
-    ...: for i in d:
-    ...:     e.append(basename(i))
+    for i in a:
+      e.append(basename(i))
+    log.debug('snapshots on harddisk: ' + str(e))
     f=[]
-    ...: for i in b:
-    ...:     f.append(basename(i))
+    for i in b:
+      f.append(basename(i))
+    log.debug('snapshots on backup media: ' + str(f))
     m=[]
-    ...: for i in b:
-    ...:     for j in e:
-    ...:         if basename(j)==basename(i):
-    ...:             #match
-    ...:             print('match')
-    ...:             m.append(i)
-    return m
-    """
+    for i in e:
+      for j in f:
+        if j==i:
+          #match
+          log.info('match')
+          m.append(i)
+    log.debug('name matched snapshots: '+ str(m))
+
+    for i in m:
+      log.info('')
+      log.info('checking match: '+i)
+      log.debug('###########################')
+      #further checking...
+      #first harddisk
+      log.debug('        Harddisk:')
+      cmd=['sudo', 'btrfs', 'sub', 'show','/'+i]
+      outp=sp.check_output(cmd).decode().splitlines()
+      for line in outp:
+        erg=line.find('Parent UUID:')
+        if not erg is -1:
+          parent_uuidline=line
+          log.debug('               parent uuid: '+parent_uuidline.split(' ')[2])
+        erg=line.find('Received UUID:')
+        if not erg is -1:
+          received_uuidline=line
+          log.debug('               received uuid: '+received_uuidline.split(' ')[2])
+
+      #backup media
+      log.debug('        Backup media:')
+      cmd=['sudo', 'btrfs', 'sub', 'show',backupdir+'/'+i]
+      outp=sp.check_output(cmd).decode().splitlines()
+      for line in outp:
+        erg=line.find('Parent UUID:')
+        if not erg is -1:
+          parent_uuidline=line
+          log.debug('               parent uuid: '+parent_uuidline.split(' ')[2])
+        erg=line.find('Received UUID:')
+        if not erg is -1:
+          received_uuidline=line
+          log.debug('               received uuid: '+received_uuidline.split(' ')[2])
+
+
+def prog():
+  a=input('do backup? (y/n)')
+  if a=='y':
+      do_backup()
+  elif a=='n':
+      pass
+  else:
+      print('invalid input. exit')
 
 
 setup_all()
-a=input('do backup? (y/n)')
-if a=='y':
-    do_backup()
-elif a=='n':
-    pass
+if not args.testing:
+  prog()
 else:
-    print('invalid input. exit')
+    search_for_shared_snapshot_pairs()
