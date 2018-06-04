@@ -5,7 +5,7 @@ EAPI=6
 inherit git-r3
 DESCRIPTION="btrfs backup tool. config: edit code"
 HOMEPAGE=""
-EGIT_REPO_URI=""
+EGIT_REPO_URI="${CODEDIR}""/code/btrfsbenc"
 
 LICENSE=""
 SLOT="0"
