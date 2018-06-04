@@ -7,7 +7,7 @@ from os import listdir
 import pexpect
 import logging
 #List of backupvolumes
-uuiddict={'a2ffcdb8-0372-41d1-b2a2-a62ea16aeaf1':'B5','481da90a-0c78-4891-b5a0-ed420b422034':'B4',"9e40b3e3-fbd0-4f6a-8b61-102052a81e8f":'B2'} #uuid:name
+uuiddict={'481da90a-0c78-4891-b5a0-ed420b422034':'B4',"9e40b3e3-fbd0-4f6a-8b61-102052a81e8f":'B2'} #uuid:name
 uuidlist=list(uuiddict)
 MAX=9
 verbosity_level=2
@@ -390,7 +390,7 @@ def search_for_shared_snapshot_pairs():
           log.info('match')
           m.append(i)
     log.debug('name matched snapshots: '+ str(m))
-
+    mm=[]
     for i in m:
       log.info('')
       log.info('checking match: '+i)
@@ -401,12 +401,17 @@ def search_for_shared_snapshot_pairs():
       cmd=['sudo', 'btrfs', 'sub', 'show','/'+i]
       outp=sp.check_output(cmd).decode().splitlines()
       for line in outp:
-        erg=line.find('Parent UUID:')
-        if not erg is -1:
+        erg=line.find('UUID:')
+        erg2=line.find('Parent UUID:')
+        erg3=line.find('Received UUID:')
+        if not erg is -1 and erg2 is -1 and erg3 is -1:
+          uuidline=line
+          uuid=uuidline.split(' ')[1]
+          log.debug('               uuid: '+uuid)
+        if not erg is -1 and not erg2 is -1 and erg3 is -1:
           parent_uuidline=line
           log.debug('               parent uuid: '+parent_uuidline.split(' ')[2])
-        erg=line.find('Received UUID:')
-        if not erg is -1:
+        if not erg is -1 and not erg3 is -1 and erg2 is -1:
           received_uuidline=line
           log.debug('               received uuid: '+received_uuidline.split(' ')[2])
 
@@ -415,14 +420,23 @@ def search_for_shared_snapshot_pairs():
       cmd=['sudo', 'btrfs', 'sub', 'show',backupdir+'/'+i]
       outp=sp.check_output(cmd).decode().splitlines()
       for line in outp:
-        erg=line.find('Parent UUID:')
-        if not erg is -1:
+        erg=line.find('UUID:')
+        erg2=line.find('Parent UUID:')
+        erg3=line.find('Received UUID:')
+        if not erg is -1 and erg2 is -1 and erg3 is -1:
+          uuidline=line
+          log.debug('               uuid: '+uuid.split(' ')[0])
+        if not erg is -1 and not erg2 is -1 and erg3 is -1:
           parent_uuidline=line
           log.debug('               parent uuid: '+parent_uuidline.split(' ')[2])
-        erg=line.find('Received UUID:')
-        if not erg is -1:
+        if not erg is -1 and not erg3 is -1 and erg2 is -1:
           received_uuidline=line
-          log.debug('               received uuid: '+received_uuidline.split(' ')[2])
+          received_uuid=received_uuidline.split(' ')[2]
+          log.debug('               received uuid: '+received_uuid)
+    if uuid==received_uuid:
+      mm.append(i)
+    print(mm)
+    return mm    
 
 
 def prog():
