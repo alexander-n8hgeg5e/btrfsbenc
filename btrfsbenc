@@ -410,10 +410,12 @@ def search_for_shared_snapshot_pairs():
           log.debug('               uuid: '+uuid)
         if not erg is -1 and not erg2 is -1 and erg3 is -1:
           parent_uuidline=line
-          log.debug('               parent uuid: '+parent_uuidline.split(' ')[2])
+          parent_uuid = parent_uuidline.split(' ')[2]
+          log.debug('               parent uuid: '+parent_uuid)
         if not erg is -1 and not erg3 is -1 and erg2 is -1:
           received_uuidline=line
-          log.debug('               received uuid: '+received_uuidline.split(' ')[2])
+          received_uuid=received_uuidline.split(' ')[2]
+          log.debug('               received uuid: '+received_uuid)
 
       #backup media
       log.debug('        Backup media:')
@@ -425,10 +427,12 @@ def search_for_shared_snapshot_pairs():
         erg3=line.find('Received UUID:')
         if not erg is -1 and erg2 is -1 and erg3 is -1:
           uuidline=line
-          log.debug('               uuid: '+uuid.split(' ')[0])
+          uuid=uuidline.split(' ')[1]
+          log.debug('               uuid: '+uuid)
         if not erg is -1 and not erg2 is -1 and erg3 is -1:
           parent_uuidline=line
-          log.debug('               parent uuid: '+parent_uuidline.split(' ')[2])
+          parent_uuid = parent_uuidline.split(' ')[2]
+          log.debug('               parent uuid: '+parent_uuid)
         if not erg is -1 and not erg3 is -1 and erg2 is -1:
           received_uuidline=line
           received_uuid=received_uuidline.split(' ')[2]
