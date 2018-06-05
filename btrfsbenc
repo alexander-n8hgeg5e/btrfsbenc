@@ -19,6 +19,8 @@ setup_mountpoint_done=False
 setup_snapshot_done=False
 setup_decryptvol_done=False
 basedir='/mnt/backup/'
+src_snap_dir='/snapshots'
+dest_dir_base='/mnt/backup'
 CONFIG_LOGLEVEL=logging.INFO
 
 def parse_args():
@@ -141,7 +143,7 @@ def setup_snapshot():
     if input("create snapshot ? (y/n):") == "y":
         global snap
         time=sp.check_output(['date','-Is']).decode().splitlines()
-        snap='/snapshot-start-'+time[0]
+        snap = src_snap_dir + '/snapshot-start-'+time[0]
         a=sp.check_call(['sudo','btrfs','sub','snap','-r','/',snap])
         global setup_snapshot_done
         setup_snapshot_done=True
@@ -213,7 +215,7 @@ def try_sys_cmd(cmdlist):
     sp.check_call(cmdlist,stdout=sp.DEVNULL,stderr=sp.DEVNULL)
 
 def setup_basedir():
-    basedir='/mnt/backup/' ##need trailing slash
+    basedir = dest_dir_base + '/' ##need trailing slash
     check(path.isdir)(basedir)
     v('basedir \"'+basedir+'\" ok',5)
 
@@ -345,20 +347,43 @@ def unmap():
 
 def do_backup():
     setup_all()
-    bashcode1='nice -n19 ionice -c3 sudo btrfs send '+snap
+    pairs=search_for_shared_snapshot_pairs()
+    parent=None
+    clone_src=None
+    if len(search_for_shared_snapshot_pairs()) > 0:
+        #pick last, hopefully the latest
+        parent=src_snap_dir+'/'+pairs[-1]
+        bashcode1='nice -n19 ionice -c3 sudo btrfs send -p '+parent+' '+snap
+    else:
+        bashcode1='nice -n19 ionice -c3 sudo btrfs send '+snap
     bashcode2='nice -n19 ionice -c3 sudo btrfs receive '+backupdir
     pipe='|'
-    q1='\''
     bashcode=bashcode1+pipe+bashcode2
+    log.info('parent: '+ str(parent))
+    log.info('clone src: '+ str(clone_src))
+    log.debug(bashcode1)
+    log.debug(bashcode2)
+    log.debug(bashcode)
+    if args.testing:
+        return
     shell=['bash','-c',bashcode]
-    sp.check_call(shell)
+    retv=sp.check_call(shell)
+    log.debug(retv)
+    if retv == 0:
+        bashcode1 = 'nice -n19 ionice -c3 sudo mv ' + snap +                            ' '  +             '/backuped-' + basename(snap)
+        bashcode2 = 'nice -n19 ionice -c3 sudo mv ' + backupdir + '/' +basename(snap) + ' '  + backupdir + '/backuped-' + basename(snap)
+        log.debug(bashcode1)
+        log.debug(bashcode2)
+        shell=['bash','-c',bashcode1]
+        sp.check_call(shell)
+        shell=['bash','-c',bashcode2]
+        sp.check_call(shell)
 
 def do_inc_backup(parent):
     setup_all()
     bashcode1='nice -n19 ionice -c3 sudo btrfs send -p '+parent+' '+snap
     bashcode2='nice -n19 ionice -c3 sudo btrfs receive '+backupdir
     pipe='|'
-    q1='\''
     bashcode=bashcode1+pipe+bashcode2
     shell=['bash','-c',bashcode]
     sp.check_call(shell)
@@ -368,13 +393,27 @@ def setup_all():
     if not setup_decryptvol_done: setup_decryptvol()
     if not setup_mountpoint_done: setup_mountpoint()
 
+
+def ask_rename_pairs():
+    setup_all()
+    pairs=search_for_shared_snapshot_pairs()
+    if len(search_for_shared_snapshot_pairs()) > 0:
+        if input('rename the pairs? (yes/no)') == 'yes':
+            rename_matching(pairs)
+
 def search_for_shared_snapshot_pairs():
     """
     search for shared snapshots, that are needed to do incremental backups.
     return list of pathnames. latest one first.
     """
-    a=sp.check_output(['fish','-c','echo /snapshot*']).decode().strip().split(' ')
-    b=sp.check_output(['fish','-c','echo '+backupdir+'/*']).decode().strip().split(' ')
+    aa=sp.check_output(['find',  src_snap_dir + '/', '-maxdepth', '1','-mindepth', '1',  '-name', 'snapshot-start*'  , '-printf' , '%f\n']).decode().splitlines()
+    log.debug('aa'+ str(aa))
+    aaa=sp.check_output(['find', src_snap_dir + '/', '-maxdepth', '1', '-mindepth', '1',  '-name', 'backuped-snapshot-start*', '-printf' , '%f\n']).decode().splitlines()
+    log.debug('aaa: '+str(aaa))
+    a=aa+aaa
+    log.debug('a'+str(a))
+    b=sp.check_output(['find', basedir, '-maxdepth', '2' ,'-mindepth', '2' , '-printf' , '%f\n']).decode().splitlines()
+    log.debug('b'+str(b))
     e=[]
     for i in a:
       e.append(basename(i))
@@ -391,15 +430,18 @@ def search_for_shared_snapshot_pairs():
           log.info('match')
           m.append(i)
     log.debug('name matched snapshots: '+ str(m))
-    mm=[]
+    clones=[]
     for i in m:
+      target_received_uuid=None
+      source_uuid=None
+      parent_uuid=None
       log.info('')
       log.info('checking match: '+i)
       log.debug('###########################')
       #further checking...
       #first harddisk
       log.debug('        Harddisk:')
-      cmd=['sudo', 'btrfs', 'sub', 'show','/'+i]
+      cmd=['sudo', 'btrfs', 'sub', 'show', src_snap_dir + '/'+i]
       outp=sp.check_output(cmd).decode().splitlines()
       for line in outp:
         erg=line.find('UUID:')
@@ -407,12 +449,14 @@ def search_for_shared_snapshot_pairs():
         erg3=line.find('Received UUID:')
         if not erg is -1 and erg2 is -1 and erg3 is -1:
           uuidline=line
-          uuid=uuidline.split(' ')[1]
+          uuid=uuidline.split(' ')[1].strip()
           log.debug('               uuid: '+uuid)
+          source_uuid=uuid
+          log.debug('           = source_uuid: '+source_uuid)
         if not erg is -1 and not erg2 is -1 and erg3 is -1:
           parent_uuidline=line
-          parent_uuid = parent_uuidline.split(' ')[2]
-          log.debug('               parent uuid: '+parent_uuid)
+          src_parent_uuid = parent_uuidline.split(' ')[2].strip()
+          log.debug('               parent uuid: '+src_parent_uuid)
         if not erg is -1 and not erg3 is -1 and erg2 is -1:
           received_uuidline=line
           received_uuid=received_uuidline.split(' ')[2]
@@ -436,15 +480,47 @@ def search_for_shared_snapshot_pairs():
           log.debug('               parent uuid: '+parent_uuid)
         if not erg is -1 and not erg3 is -1 and erg2 is -1:
           received_uuidline=line
-          received_uuid=received_uuidline.split(' ')[2]
+          received_uuid=received_uuidline.split(' ')[2].strip()
+          target_received_uuid = received_uuid
           log.debug('               received uuid: '+received_uuid)
-    if uuid==received_uuid:
-      mm.append(i)
-    print(mm)
-    return mm    
+          log.debug('         =  target_received_uuid: '+target_received_uuid)
+      log.debug('############################################################')
+      log.debug('target_received_uuid: '+target_received_uuid)
+      log.debug('         source_uuid: '+source_uuid)
+      log.debug('############################################################')
+      if target_received_uuid == source_uuid:
+        clones.append(i)
+        log.info("                   check positiv.       OK")
+      else:
+         log.info("                   check negativ.       X")
+    log.info('matching pairs: ')
+    for i in clones:
+        log.info('                    ->  '+ i)
+    shared_pairs = clones
+    searched_pairs=True
+    return clones
+
+def rename_matching(snapshots_basename):
+    for snap in snapshots_basename:
+        log.debug(snap)
+        if not snap[0:8] == 'backuped':
+          bashcode1 = 'nice -n19 ionice -c3 sudo mv '+src_snap_dir+'/'+snap   +' '+   src_snap_dir+'/backuped-'+snap
+          bashcode2 = 'nice -n19 ionice -c3 sudo mv  ' + backupdir + '/' +snap + ' '  + backupdir + '/backuped-' + snap
+          log.debug(bashcode1)
+          log.debug(bashcode2)
+          shell=['bash','-c',bashcode1]
+          sp.check_call(shell)
+          shell=['bash','-c',bashcode2]
+          sp.check_call(shell)
+
+def search_for_parent():
+      cmd=['sudo', 'btrfs', 'sub', 'show','/']
+      outp=sp.check_output(cmd).decode().splitlines()
 
 
 def prog():
+  setup_all()
+  ask_rename_pairs()
   a=input('do backup? (y/n)')
   if a=='y':
       do_backup()
@@ -454,8 +530,7 @@ def prog():
       print('invalid input. exit')
 
 
-setup_all()
 if not args.testing:
   prog()
 else:
-    search_for_shared_snapshot_pairs()
+    do_backup()
