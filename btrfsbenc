@@ -138,12 +138,13 @@ def close_crypto_LUKS(decrypt_vol_name):
     sp.check_call(cmd)
 
 def setup_snapshot():
-    global snap
-    time=sp.check_output(['date','-Is']).decode().splitlines()
-    snap='/snapshot-start-'+time[0]
-    a=sp.check_call(['sudo','btrfs','sub','snap','-r','/',snap])
-    global setup_snapshot_done
-    setup_snapshot_done=True
+    if input("create snapshot ? (y/n):") == "y":
+        global snap
+        time=sp.check_output(['date','-Is']).decode().splitlines()
+        snap='/snapshot-start-'+time[0]
+        a=sp.check_call(['sudo','btrfs','sub','snap','-r','/',snap])
+        global setup_snapshot_done
+        setup_snapshot_done=True
 
 def setup_decryptvol():
     global blkidout
