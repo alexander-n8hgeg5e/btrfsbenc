@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import subprocess as sp
+from sys import exit
 import argparse
 from os.path import basename
 from os import path
@@ -27,8 +28,9 @@ def parse_args():
     """Parse command-line arguments."""
 
     parser = argparse.ArgumentParser(description='backup tool')
-    parser.add_argument('-d', '--debug', action="store_true",default=False)
-    parser.add_argument('-t', '--testing', action="store_true",default=False)
+    parser.add_argument('-d', '--debug', action="store_true",default=False, help='enable debugging output')
+    parser.add_argument('-t', '--testing', action="store_true",default=False, help='does something undefined')
+    parser.add_argument('-u', '--unsetup', action="store_true",default=False, help='unmount and unmap, so you can unplug the thing')
     return parser.parse_args()
 
 args=parse_args()
@@ -512,6 +514,12 @@ def search_for_parent():
 
 
 def prog():
+  if args.unsetup:
+     if not setup_decryptvol_done: setup_decryptvol()
+     if not setup_mountpoint_done: setup_mountpoint()
+     unmount()
+     unmap()
+     exit(0)
   setup_all()
   ask_rename_pairs()
   a=input('do backup? (y/n)')
