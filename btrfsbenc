@@ -370,14 +370,7 @@ def do_backup():
     retv=sp.check_call(shell)
     log.debug(retv)
     if retv == 0:
-        bashcode1 = 'nice -n19 ionice -c3 sudo mv ' + snap +                            ' '  +             '/backuped-' + basename(snap)
-        bashcode2 = 'nice -n19 ionice -c3 sudo mv ' + backupdir + '/' +basename(snap) + ' '  + backupdir + '/backuped-' + basename(snap)
-        log.debug(bashcode1)
-        log.debug(bashcode2)
-        shell=['bash','-c',bashcode1]
-        sp.check_call(shell)
-        shell=['bash','-c',bashcode2]
-        sp.check_call(shell)
+        rename_matching([basename(snap)])
 
 def do_inc_backup(parent):
     setup_all()
@@ -500,8 +493,8 @@ def search_for_shared_snapshot_pairs():
     searched_pairs=True
     return clones
 
-def rename_matching(snapshots_basename):
-    for snap in snapshots_basename:
+def rename_matching(snapshots_basename_list):
+    for snap in snapshots_basename_list:
         log.debug(snap)
         if not snap[0:8] == 'backuped':
           bashcode1 = 'nice -n19 ionice -c3 sudo mv '+src_snap_dir+'/'+snap   +' '+   src_snap_dir+'/backuped-'+snap
