@@ -9,6 +9,7 @@ EGIT_REPO_URI="${CODEDIR}""/btrfsbenc https://github.com/alexander-n8hgeg5e/btrf
 #  to get this commit installed, you need a later commit,
 #  because this commit can not contain this ebuild.
 #  check out the following commit that updates the manifest.
+EGIT_COMMIT="7a23b185e5a1caa05d5c06bc9250c2cac26df591"
 LICENSE=""
 SLOT="0"
 KEYWORDS=""
