@@ -426,7 +426,7 @@ def search_for_shared_snapshot_pairs():
       for j in f:
         if j==i:
           #match
-          log.info('match')
+          log.debug('match')
           m.append(i)
     log.debug('name matched snapshots: '+ str(m))
     clones=[]
@@ -434,8 +434,8 @@ def search_for_shared_snapshot_pairs():
       target_received_uuid=None
       source_uuid=None
       parent_uuid=None
-      log.info('')
-      log.info('checking match: '+i)
+      log.debug('')
+      log.debug('checking match: '+i)
       log.debug('###########################')
       #further checking...
       #first harddisk
@@ -489,9 +489,9 @@ def search_for_shared_snapshot_pairs():
       log.debug('############################################################')
       if target_received_uuid == source_uuid:
         clones.append(i)
-        log.info( "                   backupmedium-uuid matches fs-to-backup-uuid")
+        log.debug( "                   backupmedium-uuid matches fs-to-backup-uuid")
       else:
-         log.info("                                        X                     ")
+         log.debug("                                        X                     ")
     log.info('matching pairs: ')
     for i in clones:
         log.info('                    ->  '+ i)
