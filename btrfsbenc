@@ -392,7 +392,11 @@ def setup_all():
 def ask_rename_pairs():
     setup_all()
     pairs=search_for_shared_snapshot_pairs()
-    if len(search_for_shared_snapshot_pairs()) > 0:
+    ask=False
+    for i in pairs:
+        if not i[0:8] == 'backuped':
+            ask=True
+    if len(search_for_shared_snapshot_pairs()) > 0 and ask:
         if input('rename the pairs? (yes/no)') == 'yes':
             rename_matching(pairs)
 
