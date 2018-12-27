@@ -485,9 +485,9 @@ def search_for_shared_snapshot_pairs():
       log.debug('############################################################')
       if target_received_uuid == source_uuid:
         clones.append(i)
-        log.info("                   check positiv.       OK")
+        log.info( "                   backupmedium-uuid matches fs-to-backup-uuid")
       else:
-         log.info("                   check negativ.       X")
+         log.info("                                        X                     ")
     log.info('matching pairs: ')
     for i in clones:
         log.info('                    ->  '+ i)
