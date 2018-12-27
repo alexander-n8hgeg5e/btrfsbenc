@@ -396,7 +396,7 @@ def ask_rename_pairs():
     for i in pairs:
         if not i[0:8] == 'backuped':
             ask=True
-    if len(search_for_shared_snapshot_pairs()) > 0 and ask:
+    if len(pairs) > 0 and ask:
         if input('rename the pairs? (yes/no)') == 'yes':
             rename_matching(pairs)
 
