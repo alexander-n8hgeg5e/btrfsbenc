@@ -12,7 +12,7 @@ EGIT_REPO_URI="${CODEDIR}""/btrfsbenc https://github.com/alexander-n8hgeg5e/btrf
 # EGIT_COMMIT="8d2ce40762ac5defa196d49ddb42211dd0120f8a"
 LICENSE=""
 SLOT="0"
-KEYWORDS=""
+KEYWORDS="~amd64"
 IUSE=""
 
 DEPEND=""
