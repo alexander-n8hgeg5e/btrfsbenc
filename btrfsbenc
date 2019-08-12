@@ -11,7 +11,6 @@ import logging
 uuiddict={'481da90a-0c78-4891-b5a0-ed420b422034':'B4',"9e40b3e3-fbd0-4f6a-8b61-102052a81e8f":'B2'} #uuid:name
 uuidlist=list(uuiddict)
 MAX=9
-verbosity_level=2
 verbose_groups={}
 DEVC='device: \"'
 Q='\"'
@@ -28,12 +27,15 @@ def parse_args():
     """Parse command-line arguments."""
 
     parser = argparse.ArgumentParser(description='backup tool')
+    parser.add_argument('--verbose', action="store",default=2, help='set verbosity level')
+    parser.add_argument('-v', dest='add_verbose', action="count", default=0 ,help='specify multiple times to increase verbosity level')
     parser.add_argument('-d', '--debug', action="store_true",default=False, help='enable debugging output')
     parser.add_argument('-t', '--testing', action="store_true",default=False, help='does something undefined')
     parser.add_argument('-u', '--unsetup', action="store_true",default=False, help='unmount and unmap, so you can unplug the thing')
     return parser.parse_args()
 
 args=parse_args()
+verbosity_level = args.verbose + args.add_verbose
 handler=logging.StreamHandler()
 if args.debug:
   LOGLEVEL=logging.DEBUG
@@ -63,8 +65,8 @@ def get_name_at_start_of_line(line):
     return get_device_name(line)
 
 def v(message,minlevel,**kwargs):
-    ##prints only highes allowed level of a group
-    ##specify smallest highest first
+    ## prints only highes allowed level of a group
+    ## specify smallest highest first
     if 'g' in kwargs and 'r' in kwargs:
             group = kwargs['g']
             verbose_groups.pop(group)
@@ -151,17 +153,20 @@ def setup_snapshot():
         setup_snapshot_done=True
 
 def setup_decryptvol():
+    v('setting up decryptvol',6)
     global blkidout
     global backupdecryptvolname
     global backupdecryptvol_devname
     global encrypted_dev_name
     global setup_decryptvol_done
     blkidout=sp.check_output(['sudo','blkid']).decode().splitlines()
+    v('searching for the uuids: \n'+"\n".join(uuidlist),7)
     for line in blkidout:
         v('processing line of blkidout: '+line,9)
         for uuid in uuidlist:
-            v('uuid: '+uuid,9)
+            v('searching for uuid: '+uuid,9)
             found=line.find("UUID=\""+uuid+"\"")
+            v(found,9)
             if found is not -1:
                 v('backupdevice found: '+uuid,2)
                 v('uuid found in line of blkidout, means backupdevice found: '+uuid,4)
@@ -186,6 +191,8 @@ def setup_decryptvol():
                         v('backupdecryptvol devname is : \"'+backupdecryptvol_devname+'\"',2)
                         setup_decryptvol_done=True
                 else: raise Exception('found uuid but is not crypto_LUKS... something is wrong')
+    if not setup_decryptvol_done:
+        raise Exception("\n".join(["could not setup decryptvol","maybe simply nothing matching had been found"]))
 
 def check(function):
     def checker(*args):
@@ -245,7 +252,6 @@ def setup_backupdir():
         try_sys_cmd(['sudo', 'mkdir',backupdir])
         check(path.isdir)(backupdir)
         v('backupdir is there now: \"'+backupdir+'\"',3)
-
 
 def is_dev_mounted_to_dir(dev,dir):
     v('checking if dev: \"'+dev+'\" is mounted to dir: \"'+dir,5)
@@ -515,7 +521,6 @@ def rename_matching(snapshots_basename_list):
 def search_for_parent():
       cmd=['sudo', 'btrfs', 'sub', 'show','/']
       outp=sp.check_output(cmd).decode().splitlines()
-
 
 def prog():
   if args.unsetup:
