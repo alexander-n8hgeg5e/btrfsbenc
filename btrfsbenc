@@ -225,7 +225,13 @@ def try_sys_cmd(cmdlist):
 
 def setup_basedir():
     basedir = dest_dir_base + '/' ##need trailing slash
-    check(path.isdir)(basedir)
+    if not path.isdir(basedir):
+        print("create dir: "+basedir+" (y/n)?")
+        if input()=="y":
+            from os import makedirs
+            makedirs(basedir,exist_ok=True)
+        else:
+            exit(1)
     v('basedir \"'+basedir+'\" ok',5)
 
 def dir_is_empty(dir):
