@@ -227,7 +227,7 @@ def dir_is_empty(dir):
     else: return False
 
 def mount(dev,dir):
-    cmd=['sudo' ,'mount','-o','noatime,compress=zstd',dev,dir]
+    cmd=['sudo' ,'mount','-o','noatime,compress=zlib:3',dev,dir]
     try_sys_cmd(cmd)
 
 def _unmount(dev):
