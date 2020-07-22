@@ -135,7 +135,7 @@ def setup_snapshot():
         global setup_snapshot_done
         setup_snapshot_done=True
 
-def setup_decryptvol():
+def setup_decryptvol(check_only=False):
     v('setting up decryptvol',6)
     global blkidout
     global backupdecryptvolname
@@ -167,15 +167,20 @@ def setup_decryptvol():
                         backupdecryptvol_devname=get_crypto_LUKS_volume_devname(dev_name)
                         v('backupdecryptvol devname is : \"'+backupdecryptvol_devname+'\"',2)
                         setup_decryptvol_done=True
-                    else:
+                    elif not check_only:
                         v('it is not open. opening , name will be: \"'+backupdecryptvolname+'\" ...',2)
                         open_crypto_LUKS(dev_name,backupdecryptvolname)
                         backupdecryptvol_devname=get_crypto_LUKS_volume_devname(dev_name)
                         v('backupdecryptvol devname is : \"'+backupdecryptvol_devname+'\"',2)
                         setup_decryptvol_done=True
+                    else:
+                        raise Exception("ERROR: Check for decryptvol failed.")
                 else: raise Exception('found uuid but is not crypto_LUKS... something is wrong')
     if not setup_decryptvol_done:
-        raise Exception("\n".join(["could not setup decryptvol","maybe simply nothing matching had been found"]))
+        if not check_only:
+            raise Exception("\n".join(["could not setup decryptvol","maybe simply nothing matching had been found"]))
+        else:
+            raise Exception("ERROR: Check for decryptvol failed.")
 
 def check(function):
     def checker(*args):
@@ -294,17 +299,17 @@ def is_mountpoint_ok(dev,dir):
                     return True
     return False
 
-def setup_mountpoint():
+def setup_mountpoint(check_only=False):
     global setup_mountpoint_done
     setup_basedir()
     setup_backupdir()
     if path_is_mountpoint(backupdir):
         check(is_mountpoint_ok)(backupdecryptvol_devname,backupdir)
         setup_mountpoint_done=True
-        v('mountpoint setup successfull: '+backupdir,2,g=1)
-        v('mountpoint setup successfull',1,g=1)
+        v('mountpoint ok: '+backupdir,2,g=1)
+        v('mountpoint ok',1,g=1)
         v('',9,g=1,r=1)
-    else:
+    elif not check_only:
         checkisnot(is_dev_mounted_elsewhere)(backupdecryptvol_devname,backupdir)#if is, better abort
         check(path.isdir)(backupdir)#else better abort
         check(dir_is_empty)(backupdir)#else better abort
@@ -314,6 +319,8 @@ def setup_mountpoint():
         v('mountpoint setup successfull: '+backupdir,2,g=1)
         v('mountpoint setup successfull',1,g=1)
         v('',9,g=1,r=1)
+    else:
+        raise Exception("ERROR: Mountpoint check failed.")
 
 def unmount():
     if is_dev_mounted_to_dir(backupdecryptvol_devname,backupdir):
@@ -326,6 +333,7 @@ def unmount():
     else:
         setup_mountpoint_done=False
         v(DEV+backupdecryptvol_devname+Q+' is already unmounted.',0)
+    v('unmount successfull',1,g=1)
 
 def unmap():
     if get_crypto_LUKS_volume_devname(encrypted_dev_name)==backupdecryptvol_devname:
@@ -341,6 +349,8 @@ def unmap():
     else:
         setup_decryptvol_done=False
         raise Exception('get_crypto_LUKS_volume_devname(encrypted_dev_name)==backupdecryptvol_devname is not equal. not expected')
+
+    v('unmap successfull',1,g=1)
 
 def do_backup():
     setup_all()
@@ -512,8 +522,8 @@ def search_for_parent():
 
 def prog():
     if args.unsetup:
-        if not setup_decryptvol_done: setup_decryptvol()
-        if not setup_mountpoint_done: setup_mountpoint()
+        if not setup_decryptvol_done: setup_decryptvol(check_only=True)
+        if not setup_mountpoint_done: setup_mountpoint(check_only=True)
         unmount()
         unmap()
         exit(0)
