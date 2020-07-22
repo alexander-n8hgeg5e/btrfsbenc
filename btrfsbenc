@@ -526,24 +526,29 @@ def prog():
         pass
     else:
         print('invalid input. exit')
-  
-if __name__=="__main__":
+
+def init():
+    global args
     args=parse_args()
 
     # setup logging
+    global verbosity_level
     verbosity_level = args.verbose + args.add_verbose
     handler=logging.StreamHandler()
+    global LOGLEVEL
     if args.debug:
       LOGLEVEL=logging.DEBUG
       handler.setFormatter(logging.Formatter('%(funcName)s: %(message)s'))
     else:
       LOGLEVEL=CONFIG_LOGLEVEL
       handler.setFormatter(logging.Formatter('%(message)s'))
-    
+    global log
     log=logging.getLogger('root')
     log.setLevel(LOGLEVEL)
     log.addHandler(handler)
 
+if __name__=="__main__":
+    init()
     # main
     if not args.testing:
         prog()
