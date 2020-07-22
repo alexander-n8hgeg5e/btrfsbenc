@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 import subprocess as sp
 from sys import exit
 import argparse
@@ -34,30 +34,13 @@ def parse_args():
     parser.add_argument('-u', '--unsetup', action="store_true",default=False, help='unmount and unmap, so you can unplug the thing')
     return parser.parse_args()
 
-args=parse_args()
-verbosity_level = args.verbose + args.add_verbose
-handler=logging.StreamHandler()
-if args.debug:
-  LOGLEVEL=logging.DEBUG
-  handler.setFormatter(logging.Formatter('%(funcName)s: %(message)s'))
-else:
-  LOGLEVEL=CONFIG_LOGLEVEL
-  handler.setFormatter(logging.Formatter('%(message)s'))
-
-log=logging.getLogger('root')
-log.setLevel(LOGLEVEL)
-log.addHandler(handler)
-
-
-
-
 def get_device_name(line):
     name=''
     for char in line:
-        if not char is ' ':
+        if not char == ' ':
             name=name+char
         else: break
-    if name[-1] is ':':
+    if name[-1] == ':':
         return name[:-1]
     else: raise Exception('damned, where is the colon. fix code bro')
 
@@ -83,17 +66,17 @@ def v(message,minlevel,**kwargs):
         else:
             print(message)
 
-def check_if_devname_is_crypto_LUKS(dev_name):
+def check_if_devname_is_crypto_LUKS(dev_name,blkidout):
     foundline=False
     for line in blkidout:
         if get_device_name(line) == dev_name:
             v('found line of blkidout with device name matching device name',6)
             found=line.find("TYPE=")
             v('found type keyword in line of blkidout',6)
-            if found is -1:
+            if found == -1:
                 raise Exception("no type found in line : "+line)
             found=line.find("TYPE=\""+"crypto_LUKS"+"\"")
-            if not found is -1: return True
+            if not found == -1: return True
             else: return False
             foundline=True
     if not foundline: raise Exception("devname not found in the lines.")
@@ -103,14 +86,14 @@ def check_luks_open(devname):
     out=sp.check_output(cmd).decode().splitlines()
     #print(out)
     for line in out:
-        if line.find("("+basename(devname)+")") is not -1:
+        if line.find("("+basename(devname)+")") != -1:
             #print('found')
             name=get_name_at_start_of_line(line)
             #print(name)
             cmd2=['sudo','cryptsetup','status',name]
             out2=sp.check_output(cmd2).decode().splitlines()
             #print(out2[0])
-            if out2[0].find(name+' is active') is not -1:
+            if out2[0].find(name+' is active') != -1:
                 #opened
                 return True
             else: return False
@@ -121,14 +104,14 @@ def get_crypto_LUKS_volume_devname(dev_name):
     out=sp.check_output(cmd).decode().splitlines()
     #print(out)
     for line in out:
-        if line.find("("+basename(dev_name)+")") is not -1:
+        if line.find("("+basename(dev_name)+")") != -1:
             #print('found')
             name=get_name_at_start_of_line(line)
             cmd2=['sudo','cryptsetup','status',name]
             out2=sp.check_output(cmd2).decode().splitlines()
             #print(out2[0])
             f=out2[0].find(name+' is active')
-            if f is not -1:
+            if f != -1:
                 mycryptvol_devname=out2[0][0:f+len(name)]
                 return mycryptvol_devname
             else: raise Exception('volume devname can not determined if cryptvol is inactive and it  seems not active')
@@ -167,14 +150,14 @@ def setup_decryptvol():
             v('searching for uuid: '+uuid,9)
             found=line.find("UUID=\""+uuid+"\"")
             v(found,9)
-            if found is not -1:
+            if found != -1:
                 v('backupdevice found: '+uuid,2)
                 v('uuid found in line of blkidout, means backupdevice found: '+uuid,4)
                 dev_name=get_device_name(line)
                 v('could obtain device name: '+dev_name,5)
                 v('checking if type is crypto_LUKS by useing the device name for searching the whole blkidout. Ignoring that there is already the line found...',7)
                 v('checking if type is crypto_LUKS by useing the device name for searching the whole blkidout. Ignoring that there is already the line found...',3)
-                is_crypto_LUKS=check_if_devname_is_crypto_LUKS(dev_name)
+                is_crypto_LUKS=check_if_devname_is_crypto_LUKS(dev_name,blkidout)
                 backupdecryptvolname='backupdecryptvol_'+uuiddict[uuid]
                 if is_crypto_LUKS:
                     encrypted_dev_name=dev_name
@@ -211,7 +194,7 @@ def checkisnot(function):
 def path_is_mountpoint(path):
     cmd=['mountpoint',path]
     try:
-        if sp.check_call(cmd,stdout=sp.DEVNULL,stderr=sp.DEVNULL) is 0:
+        if sp.check_call(cmd,stdout=sp.DEVNULL,stderr=sp.DEVNULL) == 0:
             #is mountpoint
             return True
         else:
@@ -235,7 +218,7 @@ def setup_basedir():
     v('basedir \"'+basedir+'\" ok',5)
 
 def dir_is_empty(dir):
-    if len(listdir(dir)) is 0:
+    if len(listdir(dir)) == 0:
         return True
     else: return False
 
@@ -260,16 +243,16 @@ def setup_backupdir():
         v('backupdir is there now: \"'+backupdir+'\"',3)
 
 def is_dev_mounted_to_dir(dev,dir):
-    v('checking if dev: \"'+dev+'\" is mounted to dir: \"'+dir,5)
+    v('checking if dev: \"'+dev+'\" == mounted to dir: \"'+dir,5)
     cmd=['cat' ,'/proc/mounts']
     out=sp.check_output(cmd).decode().splitlines()
     for line in out:
-        if line.find(dev) is not -1:
-            v('#dev is mounted to somewhere...',8)
-            if line.find(dir) is -1:
+        if line.find(dev) != -1:
+            v('#dev == mounted to somewhere...',8)
+            if line.find(dir) == -1:
                 v('#but on this line not to dir',8)
             else:
-                v('#and it is dir',8)
+                v('#and it == dir',8)
                 v('--> True',5)
                 return True
     v('--> False',5)
@@ -280,9 +263,9 @@ def is_dev_mounted_elsewhere(dev,dir):
     cmd=['cat' ,'/proc/mounts']
     out=sp.check_output(cmd).decode().splitlines()
     for line in out:
-        if line.find(dev) is not -1:
+        if line.find(dev) != -1:
             v('#dev is mounted to somewhere...',8)
-            if line.find(dir) is -1:
+            if line.find(dir) == -1:
                 v('#but its something else than backupdir...',8)
                 v('--> True',5)
                 return True
@@ -294,9 +277,9 @@ def is_dev_only_thing_mounted_here(dev,dir):
     cmd=['cat' ,'/proc/mounts']
     out=sp.check_output(cmd).decode().splitlines()
     for line in out:
-        if line.find(dir) is not -1:
+        if line.find(dir) != -1:
             v('#something is mounted to dir',8)
-            if line.find(dev) is -1:
+            if line.find(dev) == -1:
                 v('#but its something else than dev...',8)
                 v('--> False',5)
                 return False
@@ -400,7 +383,6 @@ def setup_all():
     if not setup_decryptvol_done: setup_decryptvol()
     if not setup_mountpoint_done: setup_mountpoint()
 
-
 def ask_rename_pairs():
     setup_all()
     pairs=search_for_shared_snapshot_pairs()
@@ -458,17 +440,17 @@ def search_for_shared_snapshot_pairs():
         erg=line.find('UUID:')
         erg2=line.find('Parent UUID:')
         erg3=line.find('Received UUID:')
-        if not erg is -1 and erg2 is -1 and erg3 is -1:
+        if not erg == -1 and erg2 == -1 and erg3 == -1:
           uuidline=line
           uuid=uuidline.split(' ')[1].strip()
           log.debug('               uuid: '+uuid)
           source_uuid=uuid
           log.debug('           = source_uuid: '+source_uuid)
-        if not erg is -1 and not erg2 is -1 and erg3 is -1:
+        if not erg == -1 and not erg2 == -1 and erg3 == -1:
           parent_uuidline=line
           src_parent_uuid = parent_uuidline.split(' ')[2].strip()
           log.debug('               parent uuid: '+src_parent_uuid)
-        if not erg is -1 and not erg3 is -1 and erg2 is -1:
+        if not erg == -1 and not erg3 == -1 and erg2 == -1:
           received_uuidline=line
           received_uuid=received_uuidline.split(' ')[2]
           log.debug('               received uuid: '+received_uuid)
@@ -481,15 +463,15 @@ def search_for_shared_snapshot_pairs():
         erg=line.find('UUID:')
         erg2=line.find('Parent UUID:')
         erg3=line.find('Received UUID:')
-        if not erg is -1 and erg2 is -1 and erg3 is -1:
+        if not erg == -1 and erg2 == -1 and erg3 == -1:
           uuidline=line
           uuid=uuidline.split(' ')[1]
           log.debug('               uuid: '+uuid)
-        if not erg is -1 and not erg2 is -1 and erg3 is -1:
+        if not erg == -1 and not erg2 == -1 and erg3 == -1:
           parent_uuidline=line
           parent_uuid = parent_uuidline.split(' ')[2]
           log.debug('               parent uuid: '+parent_uuid)
-        if not erg is -1 and not erg3 is -1 and erg2 is -1:
+        if not erg == -1 and not erg3 == -1 and erg2 == -1:
           received_uuidline=line
           received_uuid=received_uuidline.split(' ')[2].strip()
           target_received_uuid = received_uuid
@@ -529,24 +511,42 @@ def search_for_parent():
       outp=sp.check_output(cmd).decode().splitlines()
 
 def prog():
-  if args.unsetup:
-     if not setup_decryptvol_done: setup_decryptvol()
-     if not setup_mountpoint_done: setup_mountpoint()
-     unmount()
-     unmap()
-     exit(0)
-  setup_all()
-  ask_rename_pairs()
-  a=input('do backup? (y/n)')
-  if a=='y':
-      do_backup()
-  elif a=='n':
-      pass
-  else:
-      print('invalid input. exit')
+    if args.unsetup:
+        if not setup_decryptvol_done: setup_decryptvol()
+        if not setup_mountpoint_done: setup_mountpoint()
+        unmount()
+        unmap()
+        exit(0)
+    setup_all()
+    ask_rename_pairs()
+    a=input('do backup? (y/n)')
+    if a=='y':
+        do_backup()
+    elif a=='n':
+        pass
+    else:
+        print('invalid input. exit')
+  
+if __name__=="__main__":
+    args=parse_args()
 
+    # setup logging
+    verbosity_level = args.verbose + args.add_verbose
+    handler=logging.StreamHandler()
+    if args.debug:
+      LOGLEVEL=logging.DEBUG
+      handler.setFormatter(logging.Formatter('%(funcName)s: %(message)s'))
+    else:
+      LOGLEVEL=CONFIG_LOGLEVEL
+      handler.setFormatter(logging.Formatter('%(message)s'))
+    
+    log=logging.getLogger('root')
+    log.setLevel(LOGLEVEL)
+    log.addHandler(handler)
 
-if not args.testing:
-  prog()
-else:
-    do_backup()
+    # main
+    if not args.testing:
+        prog()
+    else:
+        do_backup()
+# vim: foldlevel=0 foldmethod=indent foldnestmax=1 :
